@@ -1,4 +1,4 @@
-# SourceCode for analysis of the german speaking bookblogger community.
+## SourceCode for analysis of the german speaking bookblogger community.
 
 See following blogarticle for detailed information about this tool:
 https://www.lesestunden.de/2018/02/quelltext-zur-analyse-worueber-schreiben-buchblogger/
