@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<title>Statistics</title>
+<link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet">
+<style>
+
+    body {
+        font-family: 'Open Sans', sans-serif;
+        width: 1080px;
+        background:#fafafa;
+    }
+
+        body > h1 {
+            cursor: pointer;
+        }
+
+    label {
+        font-weight: bold;
+    }
+
+    .sub {
+        font-size:0.8em;
+        color:#888;
+    }
+
+    .horizontal-chart {
+        width:75%;
+    }
+
+    .horizontal-chart-entry {
+        position:relative;
+        margin-bottom:2px;
+        font-size:0.75em;
+    }
+
+        .horizontal-chart-bar {
+            position:relative;
+            height:20px;
+            text-align: right;
+            padding-right: 10px;
+            color:#ffffff;
+            padding-top:3px;
+            font-size:10px;
+        }
+
+            .horizontal-chart-bar span {
+                position:absolute;
+                left: 100%;
+                top:2px;
+                padding-left:5px;
+                color:#333;
+            }
+
+        .horizontal-chart-title {
+            position:absolute;
+            top:2px;
+            padding-left:10px;
+            text-align: right;
+
+            overflow:hidden;
+            word-wrap:break-word;
+            text-overflow:ellipsis;
+            white-space: nowrap;
+        }
+
+</style>
+<script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.18/c3.min.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.18/c3.min.css" rel="stylesheet">
+
+<body>
+    <h1>Allgemeine Metriken</h1>
+    <div>
+        <div id="blogArticleCount"><label>Blog Artikel:</label> <span></span></div>
+        <div id="blogCount"><label>Blogs:</label> <span></span></div>
+        <div id="matchCount"><label>Treffer Bücher:</label> <span></span></div>
+        <div id="matchesWithBookinfoCount"><label>Treffer Bücher mit verfügbaren Genre:</label> <span></span></div>
+        <div id="booksByIsbnCount"><label>Bücher mit ISBN ermittelt:</label> <span></span></div>
+        <div id="booksDistinctTitleCount"><label>Bücher ohne Titel Duplikate:</label> <span></span></div>
+        <div id="articleLengthSum"><label>Summe der Zeichen aller Blogartikel:</label> <span></span></div>
+        <div id="articleLengthAvg"><label>Durschnittliche Länge der Blogartikel:</label> <span></span></div>
+        <div id="articleLengthPages"><label>Blogartikel in Buchseiten:</label> <span></span></div>
+        <div id="articleLength1000Pager"><label>1000seitige Bücher:</label> <span></span></div>
+        <div><label>Artikel mit Gewinnspiel im Text:</label> <span id="articlesWithGewinnspiel"></span> (<span id="articlesWithGewinnspielPercent"></span> %)</div>
+        <div><label>Durchschnittliches Blogalter:</label> <span id="avgAgeInDays"></span> Tage = <span id="avgAgeInMonths"></span> Monate = <span id="avgAgeInYears"></span> Jahre</div>
+    </div>
+
+    <h1>älteste Blogs</h1>
+    <ul id="oldestBlogs"></ul>
+
+    <h1>Blogs mit den meisten Beiträgen</h1>
+    <ul id="mostArticleBlogs"></ul>
+
+    <h1>Blogs mit den längsten Beiträgen</h1>
+    <ul id="longestArticlesBlogs"></ul>
+
+    <h1>Top 20 Bücher, es wird jede Erwähnung gezählt</h1>
+    <ul id="top20Books"></ul>
+
+    <h1>Top 20 Bücher, je Blog wird Buch nur einmal gezählt</h1>
+    <ul id="top20BooksDistinctPerBlog"></ul>
+
+    <h1>Top 20 Autoren, es wird jede Erwähnung gezählt</h1>
+    <ul id="top20Authors"></ul>
+
+    <h1>Top 20 Autoren, je Blog wird Buch nur einmal gezählt</h1>
+    <ul id="top20AuthorsDistinctPerBlog"></ul>
+
+    <h1>Verlage absolut (% bezieht sich auf alle Matches)</h1>
+    <div id="publishersAbsolute"></div>
+
+    <h1>Verlage nur ISBN Matches (% bezieht sich auf alle ISBN Matches)</h1>
+    <div id="publishersOnlyIsbn"></div>
+
+    <h1>Verlage nach Name (% bezieht sich auf alle Blog Artikel)</h1>
+    <div id="publishersByName"></div>
+
+    <h1>Randomhouse Verlage</h1>
+    <div id="chartRandomhouse"></div>
+
+    <h1>Randomhouse Verlage vs. andere Verlage</h1>
+    <div id="chartRandomhouseVsOthers"></div>
+
+    <h1>Randomhouse Verlage vs. andere Verlage Marktanteil</h1>
+    <div id="chartRandomhousePercent"></div>
+
+    <h1>Artikel nach Monat</h1>
+    <div id="chartArticlesPerMonth"></div>
+
+    <h1>Artikel nach Wochentag</h1>
+    <div id="chartArticlesPerWeekday"></div>
+
+    <h1>Histogramm Alter der Blogs (Jahr)</h1>
+    <div id="chartBlogAgeHistogrammYear"></div>
+
+    <h1>Histogramm Beitragslänge</h1>
+    <div id="chartArticleLengthHistogramm"></div>
+
+    <h1>Top Genres</h1>
+    <div id="genres"></div>
+
+    <h1>Top Genres</h1>
+    <div id="genresGroup"></div>
+
+    <script>
+        function precisionRound(number, precision) {
+            var factor = Math.pow(10, precision);
+            return Math.round(number * factor) / factor;
+        }
+
+        function groupBy(groups, data, stopFirstMatch) {
+            const result = {};
+            for (key of Object.keys(data)) {
+                const k = key.toLowerCase();
+                let isSonstiges = true;
+
+                for (group of Object.keys(groups)) {
+                    if (k.includes(group.toLowerCase()) || groups[group].find(q => k.includes(q.toLowerCase()))) {
+                        result[group] = !result[group] ? data[key] : result[group] + data[key];
+                        isSonstiges = false;
+                        if (stopFirstMatch) {
+                            break;
+                        }
+                    }
+                }
+
+                if (isSonstiges) {
+                    result["Sonstiges"] = !result["Sonstiges"] ? data[key] : result["Sonstiges"] + data[key];
+                }
+            }
+            return Object.keys(result)
+                        .map(k => ({key: k, value: result[k]}))
+                        .sort((first, second) => second.value - first.value);
+        }
+
+        function sumPublisherMonths(data) {
+            const result = {};
+            for (key of Object.keys(data)) {
+                result[key] = Object.keys(data[key]).map(month => data[key][month]).reduce((acc, v) => acc + v, 0);
+            }
+            return result;
+        }
+
+        // horizontal chart
+        function getRandomColor() {
+            var letters = '0123456789ABCDEF';
+            var color = '#';
+            for (var i = 0; i < 6; i++) {
+                color += letters[Math.floor(Math.random() * 16)];
+            }
+            return color;
+        }
+
+        function horizontalChart(target, data, percentMax, titleWidth) {
+            titleWidth = titleWidth ? titleWidth : 460;
+            percentMax = percentMax ? percentMax : data.map(e => e.value).reduce((pv, cv) => pv+cv, 0);
+
+            let max = 0;
+            for (var k of data) {
+                if (k.value > max) {
+                    max = k.value;
+                }
+            }
+
+            let html = '<div class="horizontal-chart">';
+            for (var k of data) {
+                var sum = k.value;
+                var color = getRandomColor();
+                html = html + `
+                    <div class="horizontal-chart-entry">
+                        <div class="horizontal-chart-title" title="${k.key}" style="width:${titleWidth}px;">${k.key}</div>
+                        <div class="horizontal-chart-bar" style="width:${(sum/max)*100}%;background:${color}AA;border:${color}00 1px solid;margin-left:${titleWidth+20}px">
+                            ${sum} <span>${precisionRound((sum/percentMax)*100, 2)}%</span>
+                        </div>
+                    </div>
+                `;
+            }
+            html += '</div>';
+
+            $(target).html(html);
+        }
+
+
+        $('body > h1').click(function() {
+            $(this).next().toggle();
+        });
+
+
+        // show metrics
+        $.getJSON("metrics.json", function(data) {
+            let matchCount = data.matchCount;
+            let isbnCount = data.booksByIsbnCount;
+            let articleCount = data.articleCount;
+
+            $('#blogArticleCount span').html(data.articleCount);
+            $('#blogCount span').html(data.blogCount);
+            $('#matchCount span').html(data.matchCount);
+            $('#matchesWithBookinfoCount span').html(data.matchesWithBookinfoCount);
+            $('#booksByIsbnCount span').html(data.booksByIsbnCount);
+            $('#booksDistinctTitleCount span').html(data.booksDistinctTitleCount);
+            $('#avgAgeInDays').html(data.avgAgeInDays);
+            $('#avgAgeInMonths').html(data.avgAgeInDays / 30);
+            $('#avgAgeInYears').html(data.avgAgeInDays / 365);
+            $('#articleLengthSum span').html(data.articleLengthSum);
+            $('#articleLengthPages span').html(data.articleLengthSum / 1800);
+            $('#articleLength1000Pager span').html((data.articleLengthSum / 1800) / 1000);
+            $('#articleLengthAvg span').html(data.articleLengthAvg);
+
+            $('#articlesWithGewinnspiel').html(data.articlesWithGewinnspiel);
+            $('#articlesWithGewinnspielPercent').html(Math.floor((data.articlesWithGewinnspiel / data.articleCount) * 100)) ;
+
+            $('#oldestBlogs').html(Object.keys(data.oldestBlogs).map(key => `<li>${key} ${data.oldestBlogs[key]}</li>`));
+            $('#mostArticleBlogs').html(Object.keys(data.mostArticleBlogs).map(key => `<li>${key} ${data.mostArticleBlogs[key]}</li>`));
+            $('#longestArticlesBlogs').html(Object.keys(data.longestArticlesBlogs).map(key => `<li>${key} ${data.longestArticlesBlogs[key]}</li>`));
+
+            $('#top20Books').html(data.top20Books.map(e => {
+                const authors = e.second.authors.map(e => `${e.forename} ${e.surname}`).join(", ");
+                return `<li>${e.first}: <label>${e.second.title}:</label> ${authors} <span class="sub">${e.second.isbn13 ? e.second.isbn13 : e.second.isbn10}</span></li>`
+            }));
+
+            $('#top20BooksDistinctPerBlog').html(data.top20BooksDistinctPerBlog.map(e => {
+                const authors = e.second.authors.map(e => `${e.forename} ${e.surname}`).join(", ");
+                return `<li>${e.first}: <label>${e.second.title}:</label> ${authors} <span class="sub">${e.second.isbn13 ? e.second.isbn13 : e.second.isbn10}</span></li>`
+            }));
+
+            $('#top20Authors').html(data.top20Authors.map(e => `<li>${e.first} Erwähnungen: ${e.second.forename} ${e.second.surname}</li>`));
+            $('#top20AuthorsDistinctPerBlog').html(data.top20AuthorsDistinctPerBlog.map(e => `<li>${e.first} Erwähnungen: ${e.second.forename} ${e.second.surname}</li>`));
+
+            // age histogramm by year
+            let years = Object.keys(data.ageHistogramm).map(e => e.substr(0, 4)).filter((v, i, a) => a.indexOf(v) === i)
+            let columns2 = [['x'],['Anzahl Blogs']];
+            for (year of years) {
+                if (year == "2018") {
+                    continue;
+                }
+                let sum = Object.keys(data.ageHistogramm)
+                                .filter(yearmonth => yearmonth.startsWith(year))
+                                .map(yearmonth => data.ageHistogramm[yearmonth])
+                                .reduce((acc, v) => acc+v);
+                columns2[0].push(year);
+                columns2[1].push(sum);
+            }
+
+            c3.generate({
+                bindto: '#chartBlogAgeHistogrammYear',
+                data: {
+                    x: 'x',
+                    xFormat: '%Y',
+                    columns: columns2,
+                    type: 'spline',
+                    labels: true
+                },
+                axis: {
+                    x: {
+                        type: 'timeseries',
+                        tick: {
+                            format: '%Y'
+                        }
+                    }
+                }
+            });
+
+            // article count by month
+            months = Object.keys(data.articleCountByMonth);
+            columns = [['x'],['Anzahl Artikel']];
+            for (month of months) {
+                if (month == "2018.02") {
+                    continue;
+                }
+                columns[0].push(month);
+                columns[1].push(data.articleCountByMonth[month]);
+            }
+
+            c3.generate({
+                bindto: '#chartArticlesPerMonth',
+                data: {
+                    x: 'x',
+                    xFormat: '%Y.%m',
+                    columns: columns,
+                    type: 'spline'
+                },
+                axis: {
+                    x: {
+                        type: 'timeseries',
+                        tick: {
+                            format: '%Y.%m'
+                        }
+                    }
+                }
+            });
+
+            // article count by weekday
+            order = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
+            weekdays = Object.keys(data.articleCountByWeekday).sort((a,b) => { return order.indexOf(a) > order.indexOf(b) });
+
+            columns = [['x'],['Anzahl Artikel']];
+            for (weekday of weekdays) {
+                columns[0].push(weekday);
+                columns[1].push(data.articleCountByWeekday[weekday]);
+            }
+
+            c3.generate({
+                bindto: '#chartArticlesPerWeekday',
+                data: {
+                    x: 'x',
+                    columns: columns,
+                    type: 'bar',
+                    labels: true
+                },
+                axis: {
+                    x: {
+                        type: 'category'
+                    }
+                }
+            });
+
+            // article length histogramm
+            let lengths = Object.keys(data.articleLengthHistogramm).map(e => Number.parseInt(e));
+
+            columns = [['x'],['Anzahl Beiträge']];
+            const GROUPS = [ 0, 500, 1000, 1800, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 11000, 12000, 13000, 14000, 15000, 20000, 25000, 30000];
+
+            for (let i = 0; i < GROUPS.length; i++) {
+                let start = GROUPS[i];
+                let end = GROUPS.length > i+1 ? GROUPS[i+1] : Number.MAX_SAFE_INTEGER;
+                let sum = 0;
+                for (length of lengths) {
+                    if (length >= start && length < end) {
+                        sum += data.articleLengthHistogramm[length];
+                    }
+                }
+                columns[0].push(GROUPS.length > i+1 ? `${start} - ${end-1}` : `+${start}`);
+                columns[1].push(sum);
+            }
+
+            c3.generate({
+                bindto: '#chartArticleLengthHistogramm',
+                data: {
+                    x: 'x',
+                    columns: columns,
+                    type: 'spline',
+                    labels: true
+                },
+                axis: {
+                    x: {
+                        type: 'category'
+                    }
+                }
+            });
+
+            // genres
+            horizontalChart("#genres", Object.keys(data.genres).map(e => ({ key: e, value: data.genres[e]}) ), data.matchesWithBookinfoCount);
+            
+            const genreGroups = {
+                "Jugendbücher": ["Coming-of-Age-Romane"],
+                "Kinderbücher": [],
+                "Liebesromane & Frauenliteratur": ["Frauenliteratur", "Belletristik für Frauen", "Frauen", "Liebesromane"],
+                "Fantasy & Science Fiction": ["Fantasy", "Sciene Fiction"],
+                "Historische Romane": ["Historisch"],
+                "Horror": [],
+                "Familienromane": ["Familiensaga", "Familienleben"],
+                "Humor": [],
+                "Biografien": ["Biografische Romane"],
+                "Krimis & Thriller": ["Thriller", "Krimi"],
+                "Kurzgeschichten": [],
+                "Klassiker": ["Klassisch"],
+                "Reise": [],
+                "Unterhaltungsliteratur ": [],
+                "Comics & Mangas": ["Comic", "Manga"],
+                "Fachbücher": [],
+                "Ratgeber": [],
+            }
+            horizontalChart("#genresGroup", groupBy(genreGroups, data.genres), data.matchesWithBookinfoCount);
+
+            
+            const publisherGroups = {
+                "Heyne" : [],
+                "Carlsen" : [],
+                "Piper" : [],
+                "Aufbau" : [],
+                "Knaur" : ["Droemer"],
+                "Blanvalet" : [],
+                "Goldmann" : [],
+                "dtv" : ["Deutscher Taschenbuch Verlag", "Deutscher Taschenbuch-Verlag"],
+                "cbt" : [],
+                "LYX" : [],
+                "Arena" : [],
+                "Rowohlt" : [],
+                "Diana" : [],
+                "Impress" : [],
+                "Loewe" : [],
+                "Ullstein" : [],
+                "Oetinger" : [],
+                "cbj" : [],
+                "Forever" : [],
+                "Weltbild" : [],
+                "MIRA" : [],
+                "List" : [],
+                "Hanser" : [],
+                "FJB" : [],
+                "PAN" : [],
+                "Beck" : [],
+                "Planet!" : [],
+                "Suhrkamp" : [],
+                "Diogenes" : [],
+                "Midnight" : [],
+                "Manhattan" : [],
+                "Kaiser" : [],
+                "Coppenrath" : [],
+                "btb" : [],
+                "DuMont" : [],
+                "Dressler" : [],
+                "Kosmos" : [],
+                "Bookshouse" : [],
+                "Penhaligon" : [],
+                "Klett" : ["Klett-Cotta"],
+                "Drachenmond Verlag" : [],
+                "Beltz" : [],
+                "Stock" : [],
+                "Kiepenheuer" : [],
+                "Edel" : [],
+                "Fischer" : [],
+                "Thienemann" : [],
+                "Atlantik" : [],
+                "Magellan" : [],
+                "Script5" : [],
+                "Harper Collins" : [],
+                "Penguin" : [],
+                "HarperCollins" : [],
+                "Bertelsmann" : [],
+                "Books on Demand" : [],
+                "Atlantis" : [],
+                "Mare" : [],
+                "Gmeiner" : [],
+                "Sieben Verlag" : [],
+                "Random House Audio" : [],
+                "Limes" : [],
+                "Berlin Verlag" : [],
+                "Knaus" : [],
+                "Hoffmann und Campe" : [],
+                "Bloomsbury" : [],
+                "Luchterhand" : [],
+                "ArsEdition" : [],
+                "Bloomoon" : [],
+                "Ueberreuter" : [],
+                "Festa" : [],
+                "Romance Edition" : [],
+                "Petra Schier" : [],
+                "Tokyopop" : [],
+                "Penhaligon" : [],
+                "Eichborn" : [],
+                "Emons" : [],
+                "Papierverzierer" : [],
+                "neobooks" : [],
+                "Insel Verlag" : ["Insel-Verlag"],
+                "Siedler" : [],
+                "Poppy J. Anderson" : [],
+                "Im.press" : [],
+                "Ravensburger Buchverlag" : [],
+                "Blessing" : [],
+                "Winkler" : [],
+                "Reclam" : [],
+                "Kunstmann" : [],
+                "Sutton" : [],
+                "Panini" : [],
+                "Page & Turner" : []
+            }
+
+            $.getJSON("publishers.json", (data) => horizontalChart("#publishersAbsolute", groupBy(publisherGroups, sumPublisherMonths(data), true), matchCount, 200));
+            $.getJSON("publishers_only_isbn.json", (data) => horizontalChart("#publishersOnlyIsbn", groupBy(publisherGroups, sumPublisherMonths(data), true), isbnCount, 200));
+            $.getJSON("publishers_by_name.json", (data) => {
+                const filtered = ["one", "andreas", "insel", "diana", "hammer", "gabriel", "pink", "taschen"];
+                const filteredData = {};
+                for (key of Object.keys(data).filter(e => !filtered.includes(e.toLowerCase()))) {
+                    filteredData[key] = data[key];
+                }
+                horizontalChart("#publishersByName", groupBy(publisherGroups, filteredData, true), articleCount, 200);
+            });
+
+
+            // publishers vs randomhouse
+            $.getJSON("publishers.json", (data) => {
+                let rhpublisher = ['ariston', 'arkana', 'bassermann', 'blanvalet', 'blessing', 'btb', 'carlsbooks',
+                                    'bertelsmann', 'cbj', 'derhörverlag', 'diana', 'diederichs', 'dva', 'falken',
+                                    'goldmann', 'gütersloher', 'heyne', 'lotosansata', 'irisiana', 'kailash', 'knaus',
+                                    'kösel', 'limes', 'luchterhand', 'ludwig', 'manesse', 'manhattan', 'mosaik', 'pageturner',
+                                    'pantheon', 'penguin', 'penhaligon', 'prestel', 'randomhouse', 'riemann', 'siedler',
+                                    'südwest', 'wunderraum'];
+
+                let randomhouse = {};
+                let others = {};
+
+                for (var k in data) {
+                    let current = others;
+                    if (rhpublisher.find(i => i === k.toLowerCase().replace(/[^a-z0-9öäüÖÄÜ]/gi,''))) {
+                        current = randomhouse;
+                    }
+
+                    let cPublisher = data[k];
+                    for (month in cPublisher) {
+                        current[month] = (!current[month] ? 0 : current[month]) + cPublisher[month];
+                    }
+                }
+
+                let months = Object.keys(randomhouse)
+                                .concat(Object.keys(others))
+                                .filter((v, i, a) => a.indexOf(v) === i)
+                                .filter(e => e.startsWith("2014") || e.startsWith("2015") || e.startsWith("2016"))
+                                .sort();
+
+                let columnsAbsolute = [['x'],['RandomHouse'],['andere Verlage']];
+                let columnsPercent = [['x'],['RandomHouse'],['andere Verlage']];
+
+                for (month of months) {
+                    let valueRandomhouse = randomhouse[month] ? randomhouse[month] : 0;
+                    let valueOthers = others[month] ? others[month] : 0;
+
+                    columnsAbsolute[0].push(month);
+                    columnsAbsolute[1].push(valueRandomhouse);
+                    columnsAbsolute[2].push(valueOthers);
+
+                    let valRandomhousePercent = Math.floor((valueRandomhouse / (valueRandomhouse + valueOthers)) * 100.0);
+                    columnsPercent[0].push(month);
+                    columnsPercent[1].push(valRandomhousePercent);
+                    columnsPercent[2].push(100.0 - valRandomhousePercent);
+                }
+
+                // absolute
+                c3.generate({
+                    bindto: '#chartRandomhouse',
+                    data: {
+                        x: 'x',
+                        xFormat: '%Y.%m',
+                        columns: columnsAbsolute.slice(0, 2),
+                        type: 'spline'
+                    },
+                    axis: {
+                        x: {
+                            type: 'timeseries',
+                            tick: {
+                                format: '%Y.%m'
+                            }
+                        }
+                    }
+                });
+
+                // vs others
+                c3.generate({
+                    bindto: '#chartRandomhouseVsOthers',
+                    data: {
+                        x: 'x',
+                        xFormat: '%Y.%m',
+                        columns: columnsAbsolute,
+                        type: 'spline'
+                    },
+                    axis: {
+                        x: {
+                            type: 'timeseries',
+                            tick: {
+                                format: '%Y.%m'
+                            }
+                        }
+                    }
+                });
+
+                // percent
+                c3.generate({
+                    bindto: '#chartRandomhousePercent',
+                    data: {
+                        x: 'x',
+                        xFormat: '%Y.%m',
+                        columns: columnsPercent,
+                        type: 'bar',
+                        labels: true,
+                        groups: [
+                            ['RandomHouse', 'andere Verlage']
+                        ]
+                    },
+                    axis: {
+                        x: {
+                            type: 'timeseries',
+                            tick: {
+                                format: '%Y.%m'
+                            }
+                        }
+                    }
+                });
+            });
+        });
+
+        //setTimeout(() => $('body > div, body > ul').hide(), 3000);
+    </script>
+</body>

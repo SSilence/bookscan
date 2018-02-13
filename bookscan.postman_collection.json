@@ -1,0 +1,134 @@
+{
+	"info": {
+		"name": "bookscan",
+		"_postman_id": "fb6b5404-812c-a5aa-f5da-5a5272630348",
+		"description": "",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "set max result window",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"index\": {\n\t\"max_result_window\" : \"1000000\"\n\t}\n}"
+				},
+				"url": "http://localhost:9200/bookscan/_settings"
+			},
+			"response": []
+		},
+		{
+			"name": "delete all",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"index\": {\n\t\"max_result_window\" : \"1000000\"\n\t}\n}"
+				},
+				"url": "http://localhost:9200/bookscan/"
+			},
+			"response": []
+		},
+		{
+			"name": "stats",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"index\": {\n\t\"max_result_window\" : \"1000000\"\n\t}\n}"
+				},
+				"url": "http://localhost:9200/bookscan/_stats",
+				"description": ""
+			},
+			"response": []
+		},
+		{
+			"name": "delete all blogarticle",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"query\": { \r\n        \"match_all\": {}\r\n    }\r\n}"
+				},
+				"url": "http://localhost:9200/bookscan/blogarticle/_delete_by_query",
+				"description": ""
+			},
+			"response": []
+		},
+		{
+			"name": "delete all blogs",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"query\": { \r\n        \"match_all\": {}\r\n    }\r\n}"
+				},
+				"url": "http://localhost:9200/bookscan/blog/_delete_by_query",
+				"description": ""
+			},
+			"response": []
+		},
+		{
+			"name": "delete blogarticle of blogUrl",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"query\": { \r\n        \"match_phrase\": {\r\n        \t\"blogUrl\": \"https://literatouristin.wordpress.com\"\r\n        }\r\n    }\r\n}"
+				},
+				"url": "http://localhost:9200/bookscan/blogarticle/_delete_by_query",
+				"description": ""
+			},
+			"response": []
+		},
+		{
+			"name": "delete blogs by url",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"query\": { \r\n        \"match_phrase\": {\r\n        \t\"url\": \"https://literatouristin.wordpress.com\"\r\n        }\r\n    }\r\n}"
+				},
+				"url": "http://localhost:9200/bookscan/blog/_delete_by_query",
+				"description": ""
+			},
+			"response": []
+		},
+		{
+			"name": "delete all keyvalue",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"query\": { \r\n        \"match_all\": {}\r\n    }\r\n}"
+				},
+				"url": "http://localhost:9200/bookscan/keyvalue/_delete_by_query",
+				"description": ""
+			},
+			"response": []
+		},
+		{
+			"name": "delete all bookmatches",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"query\": { \r\n        \"match_all\": {}\r\n    }\r\n}"
+				},
+				"url": "http://localhost:9200/bookscan/bookmatch/_delete_by_query",
+				"description": ""
+			},
+			"response": []
+		}
+	]
+}
