@@ -9,7 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "elasticsearch": "^14.1.0",
+    "elasticsearch": "^16.7.3",
     "ml-sentiment": "^2.0.7"
   }
 }
